@@ -16,7 +16,7 @@ use \MVCWebComponents\Hookable,
  * The Controller class handles execution of the action and communicates with 
  * the view.  Derivatives should contain most application logic.
  * 
- * @version 1.0
+ * @version 1.1
  */
 abstract class Controller extends Hookable {
 	
@@ -37,6 +37,14 @@ abstract class Controller extends Hookable {
 	 * @since 1.0
 	 */
 	protected $register = array();
+	
+	/**
+	 * Contains an array of helpers to be used with the views.
+	 * 
+	 * @var array
+	 * @since 1.1
+	 */
+	protected $helpers = array();
 	
 	/**
 	 * Sets whether or not to render the layout after the action is performed.
@@ -205,10 +213,7 @@ abstract class Controller extends Hookable {
 		call_user_func_array(array($this, $name), Register::read('params.other'));
 		
 		// If we're not rendering then there's nothing else to do.
-		if(!$this->render) {
-			Benchmark::end('action');
-			return;
-		}
+		if(!$this->render) return;
 		
 		// Sort out the view.
 		if(is_string($this->view)) $view = new View($this->view);
@@ -219,11 +224,17 @@ abstract class Controller extends Hookable {
 		if($this->layout) {
 			$layout = new View("layouts/$this->layout");
 			$layout->set($this->register);
+			
+			// Give the view a functions for delegating a variable to the layout.
+			$view->set('delegate', function($var, $val) use ($layout) {
+				$layout->set($var, $val);
+			});
+			
+			// Render the view to the layout.
 			$layout->action_output = $view->render(true);
 		}
 		
 		// Render everything.
-		Benchmark::start('render');
 		static::runHook('beforeRender', $this, array(&$layout, &$view));
 		
 		if($layout) $output = $layout->render(true);
@@ -232,12 +243,49 @@ abstract class Controller extends Hookable {
 		static::runHook('afterRender', $this, array(&$output));
 		echo $output;
 		
-		Benchmark::end('render');
-		
 		static::runHook('afterAction', $this);
 		
 	}
 	
+	/**
+	 * Redirects to a given url after given number of seconds.
+	 * 
+	 * @param string $url
+	 * @param int    $wait
+	 * @param string $message An optional flash message to set.
+	 * @param string $type    An optional type to pass to {@link Controller::flash()}.
+	 * @return void
+	 * @since 1.1
+	 */
+	protected function redirect($url, $wait = 0, $message = '', $type = '') {
+		
+		if($message) $this->flash($message, $type);
+		
+		// Sort the url.
+		if(strpos($url, 'http://') !== 0) {
+			if($url[0] == '/') $url = substr($url, 1);
+			$url = Register::read('env.root_url') . $url;
+		}
+		
+		if($wait) header("Refresh: $wait; $url");
+		else header("Location: $url");
+		
+	}
+	
+	/**
+	 * Sets a message to the session for display after redirection.
+	 * 
+	 * @param string $message
+	 * @param string $type Optional parameter set in the session for later logic.
+	 * @return void
+	 * @since 1.1
+	 */
+	protected function flash($message, $type = '') {
+		
+		Session::write('flash.message', $message);
+		Session::write('flash.type', $type);
+		
+	}
 	
 }
 
