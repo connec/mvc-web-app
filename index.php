@@ -55,10 +55,11 @@ define('DS', DIRECTORY_SEPARATOR);
 /* Get the environment details */
 $start = microtime(true);
 
-$env['root_dir']    = getcwd() . DS;
+$env['root_dir']    = dirname(__FILE__) . DS;
 $env['img_dir']     = $env['root_dir'] . 'img' . DS;
 $env['scripts_dir'] = $env['root_dir'] . 'scripts' . DS;
 $env['styles_dir']  = $env['root_dir'] . 'styles' . DS;
+$env['cache_dir']   = $env['root_dir'] . 'cache' . DS;
 
 $env['app'] = array();
 $env['framework'] = array();
@@ -80,7 +81,7 @@ $env['img_url']     = $env['root_url'] . 'img/';
 $env['scripts_url'] = $env['root_url'] . 'scripts/';
 $env['styles_url']  = $env['root_url'] . 'styles/';
 
-// TEST: link directly to mvc-web-components
+// TEST SETUP: link directly to mvc-web-components
 $env['framework']['lib_dir'] = $env['root_dir'] . '..' . DS . 'mvc-web-components' . DS;
 
 /* Setup class autoloading */
@@ -95,9 +96,11 @@ Autoloader::addDirectory(
 	$env['app']['helpers_dir'],
 	$env['framework']['controllers_dir'],
 	$env['framework']['lib_dir'],
+	/*$env['framework']['lib_dir'] . 'mvc-web-components' . DS,
+	  $env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Model' . DS,
+	  $env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Database' . DS,*/
 	$env['framework']['models_dir'],
-	$env['framework']['helpers_dir'],
-	false // don't check the directories
+	$env['framework']['helpers_dir']
 );
 
 // TEST SETUP: add mvc-web-components to autoload path.
@@ -110,77 +113,32 @@ Autoloader::addDirectory(
 /* Write the environment to the Register */
 Register::write('env', $env);
 
+// Take a guess at the application name.  Overwrite if needed.
+Register::write('app_name', Inflector::titleize(basename(Register::read('env.root_dir'))));
+
 /* Move benchmarking to the Benchmark class */
-Benchmark::write('sql_total', 0);
+Benchmark::start('setup.environment', $start);
+Benchmark::end('setup.environment');
 
-Benchmark::write('environment_start', $start);
-Benchmark::end('environment');
+/* Framework setup */
+Benchmark::start('setup.configuration');
+MVCWebApp::setup();
+Benchmark::end('setup.configuration');
 
-Benchmark::write('total_start', $start);
-Benchmark::write('setup_start', $start);
+/* Do the routing */
 
-/* Setup error handling. */
+Benchmark::start('setup.routing');
+MVCWebApp::route();
+Benchmark::end('setup.routing');
 
-Benchmark::start('configuration');
-
-// Maximum error reporting.
-error_reporting(E_ALL | E_STRICT);
-
-// Set the exception handler.
-set_exception_handler(array('\MVCWebApp\MVCWebApp', 'handleException'));
-
-/* Start session handling. */
-Session::start();
-
-/* Load configurations */
-MVCWebApp::loadConfigurations();
-
-/* Framework specific View config */
-View::addPrePath(
-	Register::read('env.app.views_dir'),
-	Register::read('env.framework.views_dir')
-);
-View::addPostPath('.tpl');
-
-Benchmark::end('configuration');
-
-/* Do the actual dispatching */
-
-Benchmark::start('routing');
-
-// Get the URL from the path info.
-if(!isset($_SERVER['PATH_INFO']) or !$_SERVER['PATH_INFO']) $url = '/';
-else $url = $_SERVER['PATH_INFO'];
-
-// Get the params from the Router.
-$params = Router::route($url);
-if(!isset($params['controller']) or !isset($params['action'])) {
-	ob_start();
-	var_dump(array('pattern' => Router::$connection['urlPattern'], 'params' => Router::$connection['parameters']));
-	$dump = ob_get_clean();
-	throw new MVCException('No controller/action params provided for route:' . $dump);
-}
-Register::write('params', $params);
-
-$controller = Inflector::camelize($params['controller'] . '_controller');
-Autoloader::relax(); // Don't want missing class exceptions from Autoloader.
-if(!class_exists($controller))
-	throw new MissingControllerException($controller);
-Register::write('controller', $controller::instance());
-
-Benchmark::end('routing');
-Benchmark::end('setup');
+Benchmark::combine('setup', 'setup');
 
 /* Do the action */
 Benchmark::start('action');
-
-ob_start();
-Register::read('controller')->action($params['action']);
-$output = ob_get_clean();
-
+$output = MVCWebApp::action();
 Benchmark::end('action');
 
-Benchmark::end('total');
+Benchmark::combine('total', array('setup', 'action'));
 
 /* Cleanup */
 // If we're debugging add some debugging info.
