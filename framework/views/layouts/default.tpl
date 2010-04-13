@@ -1,6 +1,7 @@
-<html>
+<?php echo $h('html')->doctype() ?>
+<?php echo $h('html')->htmlTag() ?>
 	<head>
-		<title><?php echo $page_title ?></title>
+		<?php echo $h('html')->tag('title', $page_title) ?>
 		<style type="text/css">
 		
 		body {
