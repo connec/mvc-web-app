@@ -37,6 +37,21 @@ class UrlHelper {
 		
 	}
 	
+	public static function fix($url) {
+		
+		// If it's a full url leave it alone.
+		if(strpos($url, 'http://') !== 0) {
+			// If it's a 'root' url strip the first '/'
+			if(strpos($url, '\\\\') === 0) $url = substr($url, 1);
+			else { // It's an application url.
+				if($url[0] == '/') $url = substr($url, 1);
+				$url = Register::read('env.root_url') . $url;
+			}
+		}
+		return $url;
+		
+	}
+	
 }
 
 ?>

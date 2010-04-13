@@ -262,10 +262,7 @@ abstract class Controller extends Hookable {
 		if($message) $this->flash($message, $type);
 		
 		// Sort the url.
-		if(strpos($url, 'http://') !== 0) {
-			if($url[0] == '/') $url = substr($url, 1);
-			$url = Register::read('env.root_url') . $url;
-		}
+		$url = UrlHelper::fix($url);
 		
 		if($wait) header("Refresh: $wait; $url");
 		else header("Location: $url");
