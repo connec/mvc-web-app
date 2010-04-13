@@ -16,22 +16,22 @@ use MVCWebComponents\Register;
  */
 class UrlHelper {
 	
-	public function native($path) {
+	public static function native($path) {
 		
 		return str_replace('/', DS, $path);
 		
 	}
 	
-	public function short($path) {
+	public static function short($path) {
 		
 		return MVCWebApp::shortPath($path);
 		
 	}
 	
-	public function long($path) {
+	public static function long($path) {
 		
 		if(strpos($path, '[root]') === 0) $path = str_replace('[root]', '');
-		$path = $this->native($path);
+		$path = static::native($path);
 		if($path[0] === DS) $path = substr($path, 1);
 		return Register::read('env.root_dir' . $path);
 		
