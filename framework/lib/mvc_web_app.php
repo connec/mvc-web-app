@@ -14,7 +14,8 @@ use \MVCWebComponents\Database\Database,
 	\MVCWebComponents\View,
 	\MVCWebComponents\Router,
 	\MVCWebComponents\Inflector,
-	\MVCWebComponents\Autoloader;
+	\MVCWebComponents\Autoloader,
+	\MVCWebComponents\Benchmark;
 
 /**
  * Framework helper class.
@@ -32,18 +33,6 @@ class MVCWebApp {
 	 * @since 0.1
 	 */
 	protected static $loadedConfigs = array();
-	
-	/**
-	 * Return {@link $loadedConfigs}.
-	 * 
-	 * @return array
-	 * @since 0.1
-	 */
-	public static function loadedConfigs() {
-		
-		return static::$loadedConfigs;
-		
-	}
 	
 	/**
 	 * Setup the framework.
@@ -80,18 +69,27 @@ class MVCWebApp {
 		// Add some helper namespaces.
 		View::addHelperNamespace('\\MVCWebApp\\');
 		
-		// Register hooks to Database to increase the sql benchmark.
-		Database::addHook('beforeQuery', function() {
-			Benchmark::start('query', null, true);
-			if(!Benchmark::finished('sql')) {
-				Benchmark::start('sql');
-				Benchmark::end('sql');
-			}
-		});
-		Database::addHook('afterQuery', function() {
-			Benchmark::end('query');
-			Benchmark::combine('sql', array('sql', 'query'));
-		});
+		// Attempt to connect to the database if there's a configuration for it.
+		if(Register::check('database')) {
+			Benchmark::start('database.connect');
+			Database::connect(
+				Register::read('database.driver'),
+				Register::read('database'));
+			Benchmark::end('database.connect');
+		
+			// Register hooks to Database to increase the sql benchmark.
+			Database::addHook('beforeQuery', function() {
+				Benchmark::start('database.query', null, true);
+				if(!Benchmark::finished('database.sql')) {
+					Benchmark::start('database.sql');
+					Benchmark::end('database.sql');
+				}
+			});
+			Database::addHook('afterQuery', function() {
+				Benchmark::end('database.query');
+				Benchmark::combine('database.sql', array('database.sql', 'database.query'));
+			});
+		}
 		
 		$setup = true;
 		
@@ -108,6 +106,16 @@ class MVCWebApp {
 		// Ensure we only perform routing once.
 		static $routed = false;
 		if($routed) return;
+		
+		// Connect the routes with the router.
+		if(!Register::check('routes') or count($routes = Register::read('routes')) == 0)
+			throw new MVCException(
+				'No route definitions found.  Create them in ' . 
+				UrlHelper::native('/app/configs/routes.php') . '.');
+		foreach($routes as $route)
+			Router::connect(
+				$route['pattern'],
+				isset($route['params']) ? $route['params'] : null);
 		
 		// Get the URL from the path info.
 		if(!isset($_SERVER['PATH_INFO']) or !$_SERVER['PATH_INFO']) $url = '/';
@@ -156,23 +164,24 @@ class MVCWebApp {
 		static $loaded = false;
 		if($loaded and !$force) return;
 		
-		foreach(scandir(Register::read('env.app.configs_dir')) as $file) {
-			if(substr($file, -4) != '.php') continue;
-			
-			$path = Register::read('env.app.configs_dir') . $file;
-			include $path;
-			
-			static::$loadedConfigs[] = substr($file, 0, -4);
-		}
-		
-		foreach(scandir(Register::read('env.framework.configs_dir')) as $file) {
-			if(substr($file, -4) != '.php') continue;
-			if(in_array(substr($file, 0, -4), static::$loadedConfigs)) return;
-			
-			$path = Register::read('env.framework.configs_dir') . $file;
-			include $path;
-			
-			static::$loadedConfigs[] = substr($file, 0, -4);
+		foreach(array(Register::read('env.app.configs_dir'), Register::read('env.framework.configs_dir')) as $dir) {
+			foreach(scandir($dir) as $file) {
+				if(substr($file, -4) != '.php') continue;
+				
+				include $dir . $file;
+				
+				$name = substr($file, 0, -4);
+				if($name == 'database')
+					if(!isset($database))
+						throw new MVCException('Database configuration file contains no database configuration.  Must use $database.');
+					else Register::write('database', $database);
+				if($name == 'routes')
+					if(!isset($routes))
+						throw new MVCException('Routes configuration file contains no routes.  Must use $routes.');
+					else Register::write('routes', $routes);
+				
+				static::$loadedConfigs[] = $name;
+			}
 		}
 		
 		Register::write('configs', static::$loadedConfigs);
