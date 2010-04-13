@@ -13,7 +13,7 @@
 </p>
 <p>
 	Database status: 
-	<?php if($h('mvc_web_app')->checkConfig('database')): ?>
+	<?php if($h('register')->check('database')): ?>
 		<span class="green">OK</span>
 	<?php else: ?>
 		<span class="red">not configured</span>
