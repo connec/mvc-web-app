@@ -10,7 +10,7 @@
 			<?php foreach($benchmarks as $key => $time): ?>
 				<tr>
 					<td><?php echo $key ?></td>
-					<td><?php echo number_format($time, 5) ?></td>
+					<td><?php echo number_format($time, 3) ?></td>
 				</tr>
 			<?php endforeach; ?>
 		</table>
