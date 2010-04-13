@@ -1,9 +1,8 @@
 <div class="debug">
-	<h1>Debugging Info</h1>
-	<h2>SQL Queries</h2>
+	<h3>SQL Queries</h3>
 	<?php echo $query_table ?>
-	<h2>Watched Variables</h2>
+	<h3>Watched Variables</h3>
 	<?php echo $watched_table ?>
-	<h2>Benchmarks</h2>
+	<h3>Benchmarks</h3>
 	<?php echo $benchmarks_table ?>
 </div>
