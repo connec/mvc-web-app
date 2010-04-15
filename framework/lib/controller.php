@@ -10,13 +10,14 @@ namespace MVCWebApp;
 use \MVCWebComponents\Hookable,
 	\MVCWebComponents\Benchmark,
 	\MVCWebComponents\Register,
-	\MVCWebComponents\View;
+	\MVCWebComponents\View,
+	\MVCWebComponents\Autoloader;
 
 /**
  * The Controller class handles execution of the action and communicates with 
  * the view.  Derivatives should contain most application logic.
  * 
- * @version 1.1
+ * @version 1.2
  */
 abstract class Controller extends Hookable {
 	
@@ -124,6 +125,14 @@ abstract class Controller extends Hookable {
 	protected $afterRender = array();
 	
 	/**
+	 * An array of processed $_POST and $_FILE data.
+	 * 
+	 * @var array
+	 * @since 1.2
+	 */
+	protected $data = array();
+	
+	/**
 	 * Controllers should be singleton, protect the constructor.
 	 * 
 	 * @return void
@@ -203,6 +212,9 @@ abstract class Controller extends Hookable {
 		
 		static::runHook('beforeAction', $this);
 		
+		// Sort out any request data.
+		$this->sortData();
+		
 		// Add controller pre paths to the View.
 		View::addPrePath(
 			Register::read('env.app.views_dir') . Register::read('params.controller') . DS,
@@ -221,6 +233,7 @@ abstract class Controller extends Hookable {
 		$view->set($this->register);
 		
 		// Sort out the layout.
+		$layout = null;
 		if($this->layout) {
 			$layout = new View("layouts/$this->layout");
 			$layout->set($this->register);
@@ -229,21 +242,72 @@ abstract class Controller extends Hookable {
 			$view->set('delegate', function($var, $val) use ($layout) {
 				$layout->set($var, $val);
 			});
-			
-			// Render the view to the layout.
-			$layout->action_output = $view->render(true);
 		}
 		
-		// Render everything.
+		// Allow the layout/view to be modified by any hooks.
 		static::runHook('beforeRender', $this, array(&$layout, &$view));
 		
-		if($layout) $output = $layout->render(true);
-		else $output = $view->render(true);
+		// Render everything.
+		if($layout) {
+			// Render the view to the layout.
+			$layout->set('action_output', $view->render(true));
+			
+			// Render the layout.
+			$output = $layout->render(true);
+		}else
+			$output = $view->render(true); // Just render the view.
 		
+		// Allow the output to be modified by any hooks.
 		static::runHook('afterRender', $this, array(&$output));
+		
+		// Finally, display the output.
 		echo $output;
 		
 		static::runHook('afterAction', $this);
+		
+	}
+	
+	/**
+	 * Sorts all request data into {@link $data} for convenient use.
+	 * 
+	 * Also applies some additional processing.
+	 * 
+	 * @return void
+	 * @since 1.2
+	 */
+	protected function sortData() {
+		
+		// Only sortData once.
+		static $sorted = false;
+		if($sorted) return;
+		
+		// Sort any POST data.
+		foreach($_POST as $k => $v) {
+			// If it's model data create a new model for it.
+			Autoloader::relax();
+			if(class_exists($k) and is_subclass_of($k, '\\MVCWebComponents\\Model\\Model'))
+				$this->data[$k] = new $k($_POST[$k]);
+			else // Otherwise just store it
+				$this->data[$k] = $v;
+		}
+		
+		// Sort any uploaded file data.
+		foreach($_FILES as $k => $v) {
+			if(!is_array($v)) throw new MVCException('Bad $_FILES format.');
+			if(isset($v['name']) and is_array($v['name'])) { // It's an array field
+				$this->data[$k] = array();
+				foreach($v['name'] as $_k => $name) {
+					$file = array();
+					foreach(array_keys($v) as $key)
+						$file[$key] = $v[$key][$_k];
+					$this->data[$k][] = new UploadedFile($file);
+				}
+			}else
+				$this->data[$k] = new UploadedFile($v);
+		}
+		
+		// Update the sorted flag.
+		$sorted = true;
 		
 	}
 	
@@ -257,12 +321,15 @@ abstract class Controller extends Hookable {
 	 * @return void
 	 * @since 1.1
 	 */
-	protected function redirect($url, $wait = 0, $message = '', $type = '') {
+	protected function redirect($url, $wait = 0, $message = '', $class = '') {
 		
-		if($message) $this->flash($message, $type);
+		if($message) $this->flash($message, $class);
 		
 		// Sort the url.
 		$url = UrlHelper::fix($url);
+		
+		// If we're in debug print a link to the url and die.
+		if(DEBUG) die("Redirect:<br/><a href=\"$url\">$url</a>: $message");
 		
 		if($wait) header("Refresh: $wait; $url");
 		else header("Location: $url");
@@ -277,10 +344,10 @@ abstract class Controller extends Hookable {
 	 * @return void
 	 * @since 1.1
 	 */
-	protected function flash($message, $type = '') {
+	protected function flash($message, $class = '') {
 		
 		Session::write('flash.message', $message);
-		Session::write('flash.type', $type);
+		Session::write('flash.class', $class);
 		
 	}
 	
