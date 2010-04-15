@@ -9,7 +9,7 @@
 			font-family: 'Lucida Sans Unicode', 'Lucida Sans', Arial, sans-serif;
 		}
 		
-		.debug, .debug td, .debug th {
+		.debug {
 			font-size: 0.7em;
 		}
 		

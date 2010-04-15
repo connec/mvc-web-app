@@ -16,6 +16,12 @@
 	<?php if($h('register')->check('database')): ?>
 		<span class="green">OK</span>
 	<?php else: ?>
-		<span class="red">not configured</span>
+		<span class="red">
+			not configured!  Create 
+			<span class="green">
+				<?php echo $h('url')->native('[root]/app/configs/database.php') ?>
+			</span> 
+			with your database configuration in $database.
+		</span>
 	<?php endif; ?>
 </p>
