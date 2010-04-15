@@ -56,14 +56,12 @@ define('DS', DIRECTORY_SEPARATOR);
 $start = microtime(true);
 
 $env['root_dir']    = dirname(__FILE__) . DS;
-$env['img_dir']     = $env['root_dir'] . 'img' . DS;
-$env['scripts_dir'] = $env['root_dir'] . 'scripts' . DS;
-$env['styles_dir']  = $env['root_dir'] . 'styles' . DS;
-$env['cache_dir']   = $env['root_dir'] . 'cache' . DS;
+
+foreach(array('img', 'scripts', 'styles', 'cache') as $dir)
+	$env[$dir . '_dir'] = $env['root_dir'] . $dir . DS;
 
 $env['app'] = array();
 $env['framework'] = array();
-
 $env['app']['dir']       = $env['root_dir'] . 'app' . DS;
 $env['framework']['dir'] = $env['root_dir'] . 'framework' . DS;
 
@@ -77,9 +75,8 @@ $env['framework']['helpers_dir'] = $env['framework']['views_dir'] . 'helpers' . 
 
 $env['root_url']    = str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
 $env['full_url']    = 'http://' . $_SERVER['SERVER_NAME'] . $env['root_url'];
-$env['img_url']     = $env['root_url'] . 'img/';
-$env['scripts_url'] = $env['root_url'] . 'scripts/';
-$env['styles_url']  = $env['root_url'] . 'styles/';
+foreach(array('img', 'scripts', 'styles') as $dir)
+	$env[$dir . '_url'] = $env['root_url'] . $dir . '/';
 
 // TEST SETUP: link directly to mvc-web-components
 $env['framework']['lib_dir'] = $env['root_dir'] . '..' . DS . 'mvc-web-components' . DS;
@@ -88,22 +85,20 @@ $env['framework']['lib_dir'] = $env['root_dir'] . '..' . DS . 'mvc-web-component
 require_once $env['framework']['lib_dir'] . 'mvc_exception.php';
 require_once $env['framework']['lib_dir'] . 'inflector.php';
 require_once $env['framework']['lib_dir'] . 'autoloader.php';
-Autoloader::addDirectory(
-	// In decreasing order of priority
-	$env['app']['controllers_dir'],
-	$env['app']['lib_dir'],
-	$env['app']['models_dir'],
-	$env['app']['helpers_dir'],
-	$env['framework']['controllers_dir'],
-	$env['framework']['lib_dir'],
-	/*$env['framework']['lib_dir'] . 'mvc-web-components' . DS,
-	  $env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Model' . DS,
-	  $env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Database' . DS,*/
-	$env['framework']['models_dir'],
-	$env['framework']['helpers_dir']
-);
 
-// TEST SETUP: add mvc-web-components to autoload path.
+foreach(array('controllers', 'lib', 'models', 'helpers') as $dir)
+	Autoloader::addDirectory(
+		$env['app'][$dir . '_dir'],
+		$env['framework'][$dir . '_dir']);
+
+// Add the mvc-web-components libraries
+/*Autoloader::addDirectory(
+	$env['framework']['lib_dir'] . 'mvc-web-components' . DS,
+	$env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Model' . DS,
+	$env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Database' . DS
+);*/
+
+// TEST SETUP: add mvc-web-components project to autoload path.
 Autoloader::addDirectory(
 	$env['framework']['dir'] . 'lib' . DS,
 	$env['root_dir'] . '..' . DS . 'mvc-web-components' . DS . 'Model',
