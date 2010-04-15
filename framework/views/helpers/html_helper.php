@@ -7,11 +7,12 @@
  * @author Chris Connelly
  */
 namespace MVCWebApp;
+use MVCWebComponents\Register;
 
 /**
  * The HtmlHelper class provides useful, commonly used HTML generation functions.
  * 
- * @version 1.0
+ * @version 1.1
  */
 class HtmlHelper {
 	
@@ -106,11 +107,57 @@ class HtmlHelper {
 	}
 	
 	/**
-	 * Returns an html link.
+	 * Returns a valid html link.
 	 * 
-	 * 
+	 * @param string $url
+	 * @param string $text The text to display inside the <a> tags.
+	 * @param array  $extra Additional attributes for the tag,
+	 * @return string
+	 * @since 1.0
 	 */
-	public static function link() {}
+	public static function link($url, $text = '', $extra = array()) {
+		
+		$url = UrlHelper::fix($url);
+		return static::tag('a', $text, array_merge($extra, array('href' => $url)));
+		
+	}
+	
+	/**
+	 * Returns a valid CSS link.
+	 * 
+	 * @param string $file
+	 * @return string
+	 * @since 1.1
+	 */
+	public static function css($file) {
+		
+		if(strpos($file, 'http://') !== 0)
+			$file = Register::read('env.styles_url') . $file;
+		if(substr($file, -4) != '.css')
+			$file .= '.css';
+		
+		return static::tag('link', '',
+			array('href' => $file, 'type' => 'text/css', 'rel' => 'stylesheet'));
+		
+	}
+	
+	/**
+	 * Returns a valid html <img> tag,
+	 * 
+	 * @param string $img Path to the image.  If not absolute (http://) will prepend the env.img_url.
+	 * @param string $alt The text for the imgs alt attribute.
+	 * @param array  $extra Additional attributes for the tag.
+	 * @return string
+	 * @since 1.1
+	 */
+	public static function img($img, $alt = '', $extra = array()) {
+		
+		if(strpos($img, 'http://') !== 0)
+			$img = Register::read('env.img_url') . $img;
+		
+		return static::tag('img', '', array_merge($extra, array('src' => $img, 'alt' => $alt)));
+		
+	}
 	
 }
 
