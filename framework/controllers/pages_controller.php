@@ -1,5 +1,6 @@
 <?php
 
+namespace MVCWebApp;
 use MVCWebApp\Controller,
 	MVCWebComponents\Inflector,
 	MVCWebComponents\Register;
