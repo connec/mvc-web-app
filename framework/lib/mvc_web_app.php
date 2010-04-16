@@ -130,8 +130,13 @@ class MVCWebApp {
 		// Register the controller.
 		$controller = Inflector::camelize($params['controller'] . '_controller');
 		Autoloader::relax(); // Don't want missing class exceptions from Autoloader.
-		if(!class_exists($controller))
-			throw new MissingControllerException($controller);
+		if(!class_exists($controller)) {
+			// Try the MVCWebApp namespace.
+			$controller = "\\MVCWebApp\\$controller";
+			Autoloader::relax();
+			if(!class_exists($controller))
+				throw new MissingControllerException($controller);
+		}
 		Register::write('controller', $controller::instance());
 		
 		$routed = true;
