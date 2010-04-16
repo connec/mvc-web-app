@@ -12,7 +12,7 @@ use MVCWebComponents\Register;
 /**
  * The HtmlHelper class provides useful, commonly used HTML generation functions.
  * 
- * @version 1.1
+ * @version 1.2
  */
 class HtmlHelper {
 	
@@ -43,7 +43,7 @@ class HtmlHelper {
 		if(!empty($attributes))
 			foreach($attributes as $attr => $value)
 				$out .= " $attr=\"$value\"";
-		if(empty($content)) $out .= " />";
+		if(empty($content) and $tag != 'script') $out .= " />";
 		else $out .= ">$content</$tag>";
 		return $out . "\n";
 		
@@ -156,6 +156,27 @@ class HtmlHelper {
 			$img = Register::read('env.img_url') . $img;
 		
 		return static::tag('img', '', array_merge($extra, array('src' => $img, 'alt' => $alt)));
+		
+	}
+	
+	/**
+	 * Returns a valid html <script> tag.
+	 * 
+	 * Note: this is most appropriate to use for files, if you're writing a 
+	 * script inline it would probably be neater in plain HTML.
+	 * 
+	 * @param string $script
+	 * @return string
+	 * @since 1.2
+	 */
+	public static function script($script) {
+		
+		if(strpos($script, 'http://') !== 0)
+			$script = Register::read('env.scripts_url') . $script;
+		if(substr($script, -3) != '.js')
+			$script = $script . '.js';
+		
+		return static::tag('script', '', array('src' => $script, 'type' => 'text/javascript'));
 		
 	}
 	
