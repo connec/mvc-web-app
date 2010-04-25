@@ -7,17 +7,17 @@
  * @author Chris Connelly
  */
 namespace MVCWebApp;
-use \MVCWebComponents\Hookable,
-	\MVCWebComponents\Benchmark,
-	\MVCWebComponents\Register,
-	\MVCWebComponents\View,
-	\MVCWebComponents\Autoloader;
+use MVCWebComponents\Hookable,
+	MVCWebComponents\Benchmark,
+	MVCWebComponents\Register,
+	MVCWebComponents\View,
+	MVCWebComponents\Autoloader;
 
 /**
  * The Controller class handles execution of the action and communicates with 
  * the view.  Derivatives should contain most application logic.
  * 
- * @version 1.2
+ * @version 1.3
  */
 abstract class Controller extends Hookable {
 	
@@ -67,6 +67,17 @@ abstract class Controller extends Hookable {
 	 */
 	protected $layout = 'default';
 	
+	/**
+	 * The view to use for rendering.
+	 * 
+	 * The view is rendered before, and inserted into, the layout.
+	 * 
+	 * Can be a string or left empty to select the template automatically.
+	 * 
+	 * @var mixed
+	 * @since 
+	 */
+	protected $view;
 	
 	/**
 	 * Array of available hooks.
@@ -74,7 +85,7 @@ abstract class Controller extends Hookable {
 	 * @var array
 	 * @since 1.0
 	 */
-	protected $hooks = array(
+	protected static $hooks = array(
 		'beforeAction',
 		'afterAction',
 		'beforeRender',
@@ -89,7 +100,7 @@ abstract class Controller extends Hookable {
 	 * @var array
 	 * @since 1.0
 	 */
-	protected $beforeAction = array();
+	protected static $beforeAction = array();
 	
 	/**
 	 * Array of functions to execute after an action is executed.
@@ -100,7 +111,7 @@ abstract class Controller extends Hookable {
 	 * @var array
 	 * @since 1.0
 	 */
-	protected $afterAction = array();
+	protected static $afterAction = array();
 	
 	/**
 	 * Array of functions to execute before rendering any output.
@@ -111,7 +122,7 @@ abstract class Controller extends Hookable {
 	 * @var array
 	 * @since 1.0
 	 */
-	protected $beforeRender = array();
+	protected static $beforeRender = array();
 	
 	/**
 	 * Array of functions to execute after rendering any output.
@@ -122,7 +133,7 @@ abstract class Controller extends Hookable {
 	 * @var array
 	 * @since 1.0
 	 */
-	protected $afterRender = array();
+	protected static $afterRender = array();
 	
 	/**
 	 * An array of processed $_POST and $_FILE data.
@@ -147,6 +158,20 @@ abstract class Controller extends Hookable {
 	 * @since 1.0
 	 */
 	final protected function __clone() {}
+	
+	/**
+	 * Treats attempts to assign missing variables as a shortcut for set().
+	 * 
+	 * @param string $var The name of the variable to set.
+	 * @param mixed  $val The value to assign.
+	 * @return void
+	 * @since 1.3
+	 */
+	public function __set($var, $val) {
+		
+		$this->set($var, $val);
+		
+	}
 	
 	/**
 	 * Returns the singleton instance of this controller.
@@ -207,8 +232,11 @@ abstract class Controller extends Hookable {
 		if($this->private and !$force) {
 			if(DEBUG) throw new MVCException('Tried to perform private controller action without $force.');
 			throw new MissingControllerException(get_class($this));
-		}elseif(!in_array($name, get_class_methods($this)))
-			throw new MissingActionException(get_class($this), $name);
+		}else {
+			$methods = get_class_methods($this);
+			if(!in_array($name, $methods) and !in_array('__call', $methods))
+				throw new MissingActionException(get_class($this), $name);
+		}
 		
 		static::runHook('beforeAction', $this);
 		
@@ -329,10 +357,17 @@ abstract class Controller extends Hookable {
 		$url = UrlHelper::fix($url);
 		
 		// If we're in debug print a link to the url and die.
-		if(DEBUG) die("Redirect:<br/><a href=\"$url\">$url</a>: $message");
+		if(DEBUG) {
+			$text = "Redirect:<br/><a href=\"$url\">$url</a>: $message";
+			if(!$wait) die($text);
+			else echo $text;
+		}
 		
 		if($wait) header("Refresh: $wait; $url");
-		else header("Location: $url");
+		else {
+			header("Location: $url");
+			exit;
+		}
 		
 	}
 	
