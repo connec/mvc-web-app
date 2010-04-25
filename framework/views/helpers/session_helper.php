@@ -25,7 +25,7 @@ class SessionHelper {
 	 */
 	public function __call($name, $args) {
 		
-		return call_user_func_array(array('\MVCWebComponents\Session', $name), $args);
+		return call_user_func_array(array('\MVCWebApp\Session', $name), $args);
 		
 	}
 	
