@@ -10,7 +10,6 @@ namespace MVCWebApp;
 use \MVCWebComponents\Database\Database,
 	\MVCWebComponents\MVCException,
 	\MVCWebComponents\Register,
-	\MVCWebComponents\Session,
 	\MVCWebComponents\View,
 	\MVCWebComponents\Router,
 	\MVCWebComponents\Inflector,
@@ -115,7 +114,7 @@ class MVCWebApp {
 		foreach($routes as $route)
 			Router::connect(
 				$route['pattern'],
-				isset($route['params']) ? $route['params'] : null);
+				isset($route['params']) ? $route['params'] : array());
 		
 		// Get the URL from the path info.
 		if(!isset($_SERVER['PATH_INFO']) or !$_SERVER['PATH_INFO']) $url = '/';
@@ -172,6 +171,7 @@ class MVCWebApp {
 		foreach(array(Register::read('env.app.configs_dir'), Register::read('env.framework.configs_dir')) as $dir) {
 			foreach(scandir($dir) as $file) {
 				if(substr($file, -4) != '.php') continue;
+				if(in_array($name = substr($file, 0, -4), static::$loadedConfigs)) continue;
 				
 				include $dir . $file;
 				
@@ -303,9 +303,9 @@ class MissingActionException extends MVCException {
 	 * @return void
 	 * @since 1.0
 	 */
-	public function __construct($action) {
+	public function __construct($controller, $action) {
 		
-		$this->message = "Missing action $action.";
+		$this->message = "Missing action $action from controller $controller.";
 		
 	}
 	
