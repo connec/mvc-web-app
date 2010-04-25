@@ -7,7 +7,8 @@
  * @author Chris Connelly
  */
 namespace MVCWebApp;
-use MVCWebComponents\BadArgumentException;
+use MVCWebComponents\BadArgumentException,
+	MVCWebComponents\Inflector;
 
 /**
  * The UploadedFile class provides a pleasant interface for handling uploaded files.
@@ -16,7 +17,7 @@ use MVCWebComponents\BadArgumentException;
  * data, there are/will be functions within the class for checking/validating a file 
  * but it is important to review these (especially file names) as they are untrusted.
  * 
- * @version 0.1
+ * @version 0.2
  */
 class UploadedFile {
 	
@@ -54,6 +55,14 @@ class UploadedFile {
 	protected $tmp_name;
 	
 	/**
+	 * The location of the file after being moved.
+	 * 
+	 * @var string
+	 * @since 0.2
+	 */
+	protected $path;
+	
+	/**
 	 * The error constant of the file upload.
 	 * 
 	 * @var int
@@ -70,6 +79,25 @@ class UploadedFile {
 	 * @since 0.1
 	 */
 	protected $size;
+	
+	/**
+	 * Dynamic getter functions.
+	 * 
+	 * @param string $name
+	 * @param array $args
+	 * @return mixed
+	 * @since 0.2
+	 */
+	public function __call($name, $args) {
+		
+		if(substr($name, 0, 3) !== 'get')
+			trigger_error('No such method: ' . get_class($this) . "::$name()", E_USER_ERROR);
+		
+		list(,$var) = explode('_', Inflector::underscore($name));
+		if(in_array($var, array('name', 'type', 'error', 'size', 'path')))
+			return $this->$var;
+		
+	}
 	
 	/**
 	 * Initialize the file with it's $_FILES data.
@@ -89,6 +117,35 @@ class UploadedFile {
 					Given:' . print_r($details, true));
 			else $this->{$field} = $details[$field];
 		}
+		
+	}
+	
+	/**
+	 * Moves an uploaded file to the specified destination.
+	 * 
+	 * @param string $path
+	 * @return bool True on success, false on failure.
+	 * @since 0.2
+	 */
+	public function move($path) {
+		
+		if(move_uploaded_file($this->tmp_name, $path)) {
+			$this->path = $path;
+			return true;
+		}
+		return false;
+		
+	}
+	
+	/**
+	 * Deletes the file if it's been moved.
+	 * 
+	 * @return void
+	 * @since 0.2
+	 */
+	public function unlink() {
+		
+		if(!empty($this->path)) unlink($this->path);
 		
 	}
 	
