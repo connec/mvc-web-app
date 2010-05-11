@@ -10,7 +10,8 @@ namespace MVCWebApp;
 use MVCWebComponents\Database\Database,
 	MVCWebComponents\Register,
 	MVCWebComponents\MVCException,
-	MVCWebComponents\BadArgumentException;
+	MVCWebComponents\BadArgumentException,
+	MVCWebComponents\Database\BadQueryException;
 
 /**
  * Cache class provides an interface for caching and recovering arbitrary 
@@ -36,15 +37,16 @@ class Cache {
 	 *    'db': Caches the serialized value in the `cache` table.
 	 *    'file': Caches the serizlied value in a file.
 	 * 
-	 * @param string $name  The name to store the value under.
-	 * @param mixed  $value The value to cache.  Stored serialize()'d.
-	 * @param string $type  The type of caching to use.  Either 'reg', 'db' or 'file'.
+	 * @param string $name     The name to store the value under.
+	 * @param mixed  $value    The value to cache.  Stored serialize()'d.
+	 * @param int    $lifetime The lifetime of the cache in seconds.
+	 * @param string $type     The type of caching to use.  Either 'reg', 'db' or 'file'.
 	 * @return bool  True on caching success, false on failure.
 	 * @since 1.0
 	 */
-	public static function write($name, $value, $type = 'file') {
+	public static function write($name, $value, $lifetime = 3600, $type = 'file') {
 		
-		$value = serialize($value)
+		$value = base64_encode(serialize(array(time() + $lifetime, $value)));
 		switch($type) {
 			case 'reg':
 				static::$register[$name] = $value;
@@ -57,8 +59,8 @@ class Cache {
 				return Database::query($sql);
 				break;
 			case 'file':
-				$name = preg_replace('[^[a-z0-9,\._]', '_', $name);
-				$file = Register::read('env.cache_dir') . $name;
+				$name = preg_replace('/[^[a-z0-9,\._]/i', '_', $name);
+				$file = Register::read('env.cache_dir') . $name . '.cache';
 				if($fh = fopen($file, 'w')) {
 					if(fwrite($fh, $value) !== false) {
 						fclose($fh);
@@ -90,21 +92,25 @@ class Cache {
 		
 		switch($type) {
 			case 'reg':
-				return unserialize(static::$register[$name]);
+				$value = static::$register[$name];
 				break;
 			case 'db':
 				$name = Database::escape($name);
 				$row = Database::getRow('array'); // query should still be set from Cache::check()
-				return unserialize($row['value']);
+				$value = $row['value'];
 			case 'file':
-				$name = preg_replace('[^[a-z0-9,\._]', '_', $name);
-				$file = Register::read('env.cache_dir') . $name;
-				return unserialize(file_get_contents($file));
+				$name = preg_replace('/[^[a-z0-9,\._]/i', '_', $name);
+				$file = Register::read('env.cache_dir') . $name . '.cache';
+				$value = trim(file_get_contents($file));
 				break;
 			default: // Should never happen
 				throw new BadArgumentException("Cache::read() expects parameter 2 to be 'all', 'reg', 'db' or 'file'. '$type' given.");
 				break;
 		}
+		
+		list($time, $value) = unserialize(base64_decode($value));
+		if(time() > $time) throw new CacheExpiredException($name, $type);
+		else return $value;
 		
 	}
 	
@@ -127,12 +133,14 @@ class Cache {
 				break;
 			case 'db':
 				$name = Database::escape($name);
-				Database::query("select * from `cache` where `name` = '$name';");
+				try {
+					Database::query("select * from `cache` where `name` = '$name';");
+				} catch(BadQueryException $e) {}
 				return Database::getNumResultRows() > 0 ? 'db' : false;
 				break;
 			case 'file':
-				$name = preg_replace('[^[a-z0-9,\._]', '_', $name);
-				$file = Register::read('env.cache_dir') . $name;
+				$name = preg_replace('/[^[a-z0-9,\._]/i', '_', $name);
+				$file = Register::read('env.cache_dir') . $name . '.cache';
 				return is_readable($file) ? 'file' : false;
 				break;
 			default:
@@ -164,6 +172,31 @@ class MissingCacheException extends MVCException {
 		
 	}
 	
-} 
+}
+
+/**
+ * An exception thrown when {@link Cache::read()} encounters an out-of-date cache.
+ * 
+ * @version 1.0
+ */
+class CacheExpiredException extends MVCException {
+	
+	/**
+	 * Sets the message.
+	 * 
+	 * @param string $name
+	 * @param string $type
+	 * @return void
+	 * @since 1.0
+	 */
+	public function __construct($name, $type) {
+		
+		$this->name = $name;
+		$this->type = $type;
+		$this->message = "Cache '$name' for type '$type' has expired.";
+		
+	}
+	
+}
 
 ?>
