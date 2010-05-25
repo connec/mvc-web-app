@@ -73,36 +73,29 @@ foreach(array('configs', 'controllers', 'lib', 'models', 'views') as $dir) {
 $env['app']['helpers_dir']       = $env['app']['views_dir'] . 'helpers' . DS;
 $env['framework']['helpers_dir'] = $env['framework']['views_dir'] . 'helpers' . DS;
 
+$env['framework']['mvc_dir'] = $env['framework']['lib_dir'] . 'mvc-web-components' . DS;
+
 $env['root_url']    = str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
 $env['full_url']    = 'http://' . $_SERVER['SERVER_NAME'] . $env['root_url'];
 foreach(array('img', 'scripts', 'styles') as $dir)
 	$env[$dir . '_url'] = $env['root_url'] . $dir . '/';
 
-// TEST SETUP: link directly to mvc-web-components
-$env['framework']['lib_dir'] = $env['root_dir'] . '..' . DS . 'mvc-web-components' . DS;
-
 /* Setup class autoloading */
-require_once $env['framework']['lib_dir'] . 'mvc_exception.php';
-require_once $env['framework']['lib_dir'] . 'inflector.php';
-require_once $env['framework']['lib_dir'] . 'autoloader.php';
+require_once $env['framework']['mvc_dir'] . 'mvc_exception.php';
+require_once $env['framework']['mvc_dir'] . 'inflector.php';
+require_once $env['framework']['mvc_dir'] . 'autoloader.php';
 
 foreach(array('controllers', 'lib', 'models', 'helpers') as $dir)
 	Autoloader::addDirectory(
 		$env['app'][$dir . '_dir'],
 		$env['framework'][$dir . '_dir']);
 
-// Add the mvc-web-components libraries
-/*Autoloader::addDirectory(
-	$env['framework']['lib_dir'] . 'mvc-web-components' . DS,
-	$env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Model' . DS,
-	$env['framework']['lib_dir'] . 'mvc-web-components' . DS . 'Database' . DS
-);*/
-
-// TEST SETUP: add mvc-web-components project to autoload path.
+// Autoload classes
 Autoloader::addDirectory(
-	$env['framework']['dir'] . 'lib' . DS,
-	$env['root_dir'] . '..' . DS . 'mvc-web-components' . DS . 'Model',
-	$env['root_dir'] . '..' . DS . 'mvc-web-components' . DS . 'Database'
+	$env['framework']['lib_dir'],
+	$env['framework']['mvc_dir'],
+	$env['framework']['mvc_dir'] . 'Model' . DS,
+	$env['framework']['mvc_dir'] . 'Database' . DS
 );
 
 /* Write the environment to the Register */
